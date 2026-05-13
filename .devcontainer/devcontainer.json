@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "LIULIAN workspace",
+  "dockerComposeFile": "../docker-compose.dev.yml",
+  "service": "workspace",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+
+  "forwardPorts": [3000, 8000, 8001, 8002, 5432, 6379, 9000, 9001, 8888, 8080, 8081, 6006],
+  "portsAttributes": {
+    "3000": { "label": "liulian-web (Next.js)", "onAutoForward": "openBrowser" },
+    "8000": { "label": "liulian-api (FastAPI)", "onAutoForward": "notify" },
+    "8001": { "label": "liulian-agent (FastAPI)", "onAutoForward": "silent" },
+    "8002": { "label": "liulian-ingest", "onAutoForward": "silent" },
+    "5432": { "label": "Postgres" },
+    "6379": { "label": "Redis" },
+    "9000": { "label": "MinIO S3 API" },
+    "9001": { "label": "MinIO console", "onAutoForward": "notify" },
+    "8888": { "label": "static demo HTML" }
+  },
+
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "yzhang.markdown-all-in-one"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "python.defaultInterpreterPath": "/usr/local/bin/python3",
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "files.exclude": {
+          "**/__pycache__": true,
+          "**/.pytest_cache": true,
+          "**/.ruff_cache": true,
+          "**/.next": true,
+          "**/node_modules": true
+        }
+      }
+    },
+    "codespaces": {
+      "openFiles": ["README.md"]
+    }
+  },
+
+  "remoteUser": "liulian",
+  "postCreateCommand": "bash scripts/bootstrap-codespaces.sh"
+}

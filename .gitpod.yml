@@ -1,0 +1,48 @@
+# Gitpod cloud dev environment for LIULIAN.
+# Open: https://gitpod.io/#https://github.com/liulian-ai/liulian-dev-env
+
+image:
+  file: Dockerfile
+
+tasks:
+  - name: Bootstrap
+    init: bash scripts/bootstrap-codespaces.sh
+    command: |
+      echo "✓ LIULIAN workspace ready"
+      echo "Try: make install && make api && make web"
+
+ports:
+  - port: 3000
+    name: liulian-web
+    onOpen: open-preview
+    visibility: public
+  - port: 8000
+    name: liulian-api
+    onOpen: notify
+    visibility: public
+  - port: 8001
+    name: liulian-agent
+    onOpen: ignore
+    visibility: public
+  - port: 8888
+    name: static demo
+    onOpen: open-browser
+    visibility: public
+  - port: 5432
+    name: postgres
+    onOpen: ignore
+  - port: 6379
+    name: redis
+    onOpen: ignore
+  - port: 9001
+    name: minio console
+    onOpen: notify
+
+vscode:
+  extensions:
+    - ms-python.python
+    - charliermarsh.ruff
+    - bradlc.vscode-tailwindcss
+    - dbaeumer.vscode-eslint
+    - esbenp.prettier-vscode
+    - ms-azuretools.vscode-docker
