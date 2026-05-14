@@ -1,178 +1,160 @@
-# Neobanker — Local Development Environment
+# liulian-dev-env
 
-[![Lint](https://github.com/neo-banker/neobanker-dev-env/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/neo-banker/neobanker-dev-env/actions/workflows/lint.yml)
-[![Infra Bootstrap](https://github.com/neo-banker/neobanker-dev-env/actions/workflows/infra.yml/badge.svg?branch=main)](https://github.com/neo-banker/neobanker-dev-env/actions/workflows/infra.yml)
-[![Full Bootstrap](https://github.com/neo-banker/neobanker-dev-env/actions/workflows/full.yml/badge.svg?branch=main)](https://github.com/neo-banker/neobanker-dev-env/actions/workflows/full.yml)
+> **Language:** English | [中文](README.zh.md) *(pending)*
 
-One-command bootstrap for the **full Neobanker stack** (frontend, backend, agent, DB, Redis, Elasticsearch) on a developer's local machine.
+**One-click LIULIAN dev environment** across Linux / macOS / Windows
+WSL / Codespaces / Gitpod / VS Code Remote Containers. Clones the 7-repo
+federation, builds a workspace image, starts all sidecar services, maps
+every port to your host browser.
 
-> 🎯 This is the **local-machine** path. For GitHub Codespaces, see the `feat/codespaces-auto-setup` branch.
-
-中文：[`README.zh-CN.md`](./README.zh-CN.md)
-
----
-
-## Platform Support — what's actually verified
-
-| Platform | Lint | Infra-only | **Full stack** | Note |
-|---|:---:|:---:|:---:|---|
-| **Linux** (Ubuntu 22.04+) | ✅ CI | ✅ CI | 🟡 manual‡ | native docker; bootstrap.sh end-to-end works, but **CI only checks the docker layer** |
-| **macOS** (Apple Silicon / Intel) | ✅ CI | 🟡 manual† | 🟡 manual | needs Docker Desktop / OrbStack / Rancher Desktop |
-| **Windows 10/11** | ✅ CI | 🟡 manual† | 🟡 manual | needs WSL2 + Docker Desktop |
-
-CI status badges reflect **live** test results from the latest commit on `main`.
-
-### What CI actually verifies (be honest about it)
-
-| Job | What it does | What it does NOT do |
-|---|---|---|
-| **Lint** (3 OSes) | Bash `bash -n` syntax check, env-template KEY=VALUE format, `docker compose config -q` (Linux only) | Does not start any container |
-| **Infra-only** (Linux) | `bash scripts/bootstrap.sh --infra-only` → spins up MySQL/Redis/Elasticsearch containers + `docker exec ... ping` each | Does **not** clone the 3 service repos, does **not** start backend/agent/frontend, does **not** import data, does **not** test API endpoints |
-| **Full** (Linux, gated) | Would clone all repos + start backend/agent/frontend + run end-to-end smoke test | **Currently disabled** — needs `BACKEND_REPO_TOKEN` / `FRONTEND_REPO_TOKEN` / `AGENT_REPO_TOKEN` GitHub secrets to clone the private repos. See [docs/ci-roadmap.md](docs/ci-roadmap.md) |
-
-> **Bottom line**: the green ✅ above means "the docker compose stack starts cleanly on Linux". It does **not** mean "the whole Neobanker app works on every PR". For the latter, see the [CI Roadmap](docs/ci-roadmap.md).
-
-> † macOS/Windows infra-only is "manual" because GitHub Actions free runners
-> don't ship docker (macOS) or only ship Windows-container mode (Windows). The
-> script itself works locally on those OSes — see [docs/troubleshooting.md](docs/troubleshooting.md#why-no-cidocker-on-macos-and-windows).
->
-> ‡ Linux full-stack is "manual" because cloning private repos in CI requires
-> GitHub PAT secrets that are not yet configured. The script works locally for
-> developers with SSH access — verified by hand on 2026-05-09.
+LIULIAN is an open-source production stack for **spatio-temporal AI**
+forecasting (hydrology, energy, healthcare time-series). This repo
+is the *developer surface*. The production deploy surface lives in
+[`liulian-ops`](https://github.com/liulian-ai/liulian-ops).
 
 ---
 
-## What you get after `bootstrap.sh`
+## TL;DR
 
-| Service | Port | URL |
-|---|---:|---|
-| Frontend (Next.js 14) | 3000 | http://localhost:3000/homepage |
-| Backend (Spring Boot 3.1) | 8080 | http://localhost:8080/actuator/health |
-| Agent (FastAPI) | 8000 | http://localhost:8000/docs |
-| MySQL 8.0 | 3307 | `mysql -uroot -proot neobanker` |
-| Elasticsearch 7.17 | 9200 | http://localhost:9200/_cat/indices?v |
-| Redis 7 | 6379 | `redis-cli` |
-| phpMyAdmin (optional) | 8088 | http://localhost:8088 |
+### Codespaces (zero local setup)
 
-Plus pre-imported data: **35,000+ rows** across 11 business tables (575 banks, 27,500 news, 2,700 products, etc.) and **575 companies indexed in Elasticsearch**.
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/liulian-ai/liulian-dev-env)
 
----
-
-## Prerequisites (install on host)
-
-| Tool | Version | Install |
-|---|---|---|
-| Docker | 20+ with `docker compose` plugin | https://docs.docker.com/get-docker/ |
-| Git | any | usually preinstalled |
-| Java | **17** (Temurin or OpenJDK) | `sdk install java 17.0.10-tem` or your package manager |
-| Node | **20** | https://nodejs.org or `nvm install 20` |
-| Python | **3.12** | https://python.org or `pyenv install 3.12` |
-| `uv` | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-
-> Versions match `deploy.yml` of each service repo (Java 17 / Node 20 / Python 3.12).
-
----
-
-## Quickstart — Pick your path
-
-### Path A — One-shot (fastest)
+Click the badge. Wait ~3 min for the image to build, sibling repos to
+clone, and ports to forward. Then in the Codespaces terminal:
 
 ```bash
-git clone git@github.com:neo-banker/neobanker-dev-env.git
-cd neobanker-dev-env
-bash scripts/bootstrap.sh
+make install     # one-shot: install all repo deps
+make api & make web
 ```
 
-**What happens** (≈ 5–15 min on first run):
-1. Pre-flight tool checks
-2. Clones 3 service repos into `./repos/`
-3. `docker compose up` for MySQL + Redis + Elasticsearch
-4. Patches `.env` files from `templates/env/`
-5. `npm install` + `uv sync` (first run only)
-6. Starts Spring Boot backend with env-var overrides for cross-container networking
-7. Imports CSV data (~30 sec)
-8. Bulk-loads 575 companies into Elasticsearch
-9. Seeds `search_logs` so homepage hot-search chips work
-10. Starts agent + frontend
-11. Prints health table + ready URLs
+### VS Code Remote Containers (local Docker)
 
-### Path B — Manual, step-by-step (you understand each step)
+1. Install [VS Code](https://code.visualstudio.com) + the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
+2. Clone this repo and open in VS Code.
+3. Cmd+Shift+P → "Dev Containers: Reopen in Container".
+4. Same `make install && make api & make web`.
 
-See [`docs/manual-install.md`](docs/manual-install.md) — every command broken out.
+### Gitpod (cloud IDE)
 
-### Path C — AI agent does it for you
+Visit https://gitpod.io/#https://github.com/liulian-ai/liulian-dev-env
 
-You ask Claude Code / Copilot CLI / Cursor to run the bootstrap. Drop this prompt into your AI coding agent:
-
-> Read `https://github.com/neo-banker/neobanker-dev-env/blob/main/docs/ai-agent-prompt.md` and follow it to set up my local Neobanker dev environment.
-
-The prompt file is a compact, agent-friendly recipe. See [`docs/ai-agent-prompt.md`](docs/ai-agent-prompt.md).
-
----
-
-## Common ops
+### Linux (Ubuntu / Debian / Fedora / Arch)
 
 ```bash
-bash scripts/bootstrap.sh                  # full
-bash scripts/bootstrap.sh --infra-only     # only docker compose, no apps
-bash scripts/bootstrap.sh --skip-clone     # repos/ already populated
-bash scripts/bootstrap.sh --branch chatbot # clone the chatbot branch instead
+curl -fsSL https://raw.githubusercontent.com/liulian-ai/liulian-dev-env/main/scripts/bootstrap-linux.sh | bash
+```
 
-bash scripts/teardown.sh                   # stop apps + containers (preserve data volumes)
-bash scripts/teardown.sh -v                # also drop volumes (fresh DB next time)
+### macOS (Intel + Apple Silicon)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/liulian-ai/liulian-dev-env/main/scripts/bootstrap-macos.sh | bash
+```
+
+### Windows (PowerShell + WSL2)
+
+```powershell
+irm https://raw.githubusercontent.com/liulian-ai/liulian-dev-env/main/scripts/bootstrap-windows.ps1 | iex
 ```
 
 ---
 
-## Documentation map
+## What it installs / starts
 
-| Doc | Read when |
+| Layer | What | Where it ends up |
+|---|---|---|
+| Container runtime | Docker + docker compose v2 | Your machine |
+| Workspace image | Ubuntu 24.04 + node 20 + pnpm + python 3.11 + uv + helm + kubectl + terraform + gh | Built locally as `liulian/workspace:dev` |
+| Sibling repos | 7× `liulian-*` cloned into `$LIULIAN_WORKSPACE` (default `~/liulian`) | Bound to `/workspace` in the container |
+| Services | Postgres · Redis · MinIO | Sidecars on the docker network |
+| Optional | Ollama (local LLM) · Prometheus · Grafana | `make dev-full` profile |
+
+## Port map (all forwarded to host `localhost`)
+
+| Port | Service | URL |
+|---|---|---|
+| 8000 | liulian-api | http://localhost:8000/api/docs |
+| 8001 | liulian-agent | http://localhost:8001/health |
+| 8002 | liulian-ingest | http://localhost:8002/health |
+| 3000 | liulian-web (Next.js) | http://localhost:3000 |
+| 8081 | liulian-mobile (Expo) | http://localhost:8081 |
+| 6006 | Storybook | http://localhost:6006 |
+| 8080 | MkDocs docs | http://localhost:8080 |
+| 8888 | static demo HTMLs | http://localhost:8888 |
+| 5432 | Postgres | `psql -h localhost -U liulian liulian_api` |
+| 6379 | Redis | `redis-cli` |
+| 9000 | MinIO S3 API | (programmatic) |
+| 9001 | MinIO console | http://localhost:9001 (`minioadmin/minioadmin`) |
+| 11434 | Ollama (dev-full only) | http://localhost:11434 |
+| 9090 | Prometheus (dev-full only) | http://localhost:9090 |
+| 3001 | Grafana (dev-full only) | http://localhost:3001 |
+
+## Common Make targets
+
+```bash
+make help          # full menu
+make dev           # build image + start core services + workspace
+make dev-full      # also start ollama, prometheus, grafana
+make install       # install Python + JS deps in every repo (one-shot)
+make api           # start liulian-api inside workspace, forwarded to 8000
+make agent         # start liulian-agent  on 8001
+make web           # start liulian-web    on 3000
+make all           # install + api + agent + web + health
+make health        # ping all /healthz endpoints
+make shell         # drop into the workspace container
+make status        # service + port table
+make logs          # tail all services
+make stop          # stop services, keep volumes
+make destroy       # nuclear — also delete volumes (asks confirmation)
+make seed          # load SwissRiver demo data
+```
+
+## Environment
+
+Copy `.env.example` → `.env`. Optional LLM provider keys:
+
+- `DEEPSEEK_API_KEY` — cheapest production-grade default (DeepSeek V4)
+- `GLM_API_KEY` — best for Chinese tasks (Zhipu)
+- `GEMINI_API_KEY` — long context + multimodal (Google)
+- `ANTHROPIC_API_KEY` — high-quality reasoning
+- `LIULIAN_OFFLINE=1` — force local Ollama only (sovereign / offline)
+
+## Architecture
+
+The container does NOT run any LIULIAN service itself by default; it's
+a *workspace* with shells, editors, and CLIs. Services start on demand
+via `make api` etc. and their files live in the mounted sibling
+directories so edits on host = edits in container.
+
+```
+   Host
+   └── ~/liulian/                        (sibling clones)
+       ├── liulian-python/
+       ├── liulian-api/
+       ├── liulian-agent/
+       ├── liulian-ingest/
+       ├── liulian-web/
+       ├── liulian-ops/
+       ├── liulian-design-system/
+       └── liulian-dev-env/  ◄ this repo (build context for image)
+
+   Container
+   └── /workspace -> bind mount of ~/liulian/    (your edits live here)
+```
+
+## When to use this vs `liulian-ops`
+
+| You want to… | Use |
 |---|---|
-| [`docs/architecture.md`](docs/architecture.md) | You want to understand container topology, ports, container-to-container networking |
-| [`docs/database-schema.md`](docs/database-schema.md) / [`.html`](docs/database-schema.html) | You need to know which of the 65 MySQL tables actually have data (it's 11) and how they relate |
-| [`docs/troubleshooting.md`](docs/troubleshooting.md) | Something broke during bootstrap — 16 known issues + fixes |
-| [`docs/verification-handbook.md`](docs/verification-handbook.md) | You want to verify everything is working at L1 (process) / L2 (DB) / L3 (frontend ↔ backend) / L4 (ES search) |
-| [`docs/ai-agent-prompt.md`](docs/ai-agent-prompt.md) | You want an AI coding agent to run the bootstrap for you |
-| [`docs/manual-install.md`](docs/manual-install.md) | You want to understand each step or have a problem with the one-shot script |
-
----
-
-## Repo layout
-
-```
-neobanker-dev-env/
-├── docker/
-│   └── docker-compose.yml        # MySQL/Redis/ES + optional MinIO/phpMyAdmin
-├── scripts/
-│   ├── bootstrap.sh              # one-shot setup
-│   └── teardown.sh               # stop everything
-├── templates/env/                # .env templates copied to each cloned repo
-│   ├── frontend.env.example
-│   ├── backend.env.example
-│   ├── agent.env.example
-│   └── dependencies.env.example
-├── docs/                         # all documentation
-├── repos/                        # cloned service repos (gitignored)
-└── .runtime/                     # logs + pids (gitignored)
-```
-
----
-
-## Limitations
-
-- **Clerk auth** in dev uses a CI placeholder publishable key — sign-in won't work. Anonymous browse OK. Replace with your own dev key from https://dashboard.clerk.com.
-- **Some 3rd-party CDN logos** (Wikimedia, etc.) may 404 if URL changes upstream — see `docs/troubleshooting.md` §9.
-- **`/es/*` reindex endpoints** require a JWT — bootstrap bypasses by writing to ES directly.
-- **macOS / Windows** full bootstrap (with backend running) is **manual** — CI only verifies infra-only on those.
-
----
-
-## Contributing
-
-Fork → branch → PR. Add `[full-ci]` to the PR title to trigger the full Linux bootstrap CI job.
-
----
+| Spin up the federation on your laptop / Codespaces | **this repo** |
+| Run a smoke test of all services locally | **this repo** (`make all`) |
+| Deploy to staging or production | [`liulian-ops`](https://github.com/liulian-ai/liulian-ops) |
+| Roll out a Helm release across services | `liulian-ops` |
+| Write a new reusable CI workflow | `liulian-ops/.github/workflows/` |
+| Run the deploy CLI `liulianctl` | `liulian-ops` |
 
 ## License
 
-Internal — Neobanker team only.
+MIT. (Workspace image build leverages patterns from the `liulian-dev-env`
+public repo — see `liulian-python/docs/strategy/adr/0006-fork-and-adapt-from-liulian.md`
+for attribution.)
